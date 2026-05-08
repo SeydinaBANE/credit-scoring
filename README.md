@@ -3,7 +3,7 @@
 > Scoring de crédit alternatif pour les **non-bankés en Afrique de l'Ouest**  
 > Analyse les données **Mobile Money** (Wave, Orange Money) et **Telco** pour évaluer la solvabilité sans historique bancaire.
 
-![Python](https://img.shields.io/badge/Python-3.11-blue) ![XGBoost](https://img.shields.io/badge/XGBoost-AUC--ROC%200.86-green) ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688) ![LangGraph](https://img.shields.io/badge/Agent-LangGraph-orange)
+![Python](https://img.shields.io/badge/Python-3.11-blue) ![XGBoost](https://img.shields.io/badge/XGBoost-AUC--ROC%200.86-green) ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688) ![LangGraph](https://img.shields.io/badge/Agent-LangGraph-orange) ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED)
 
 ---
 
@@ -94,6 +94,25 @@ cp .env_exemple .env
 ---
 
 ## Lancement
+
+### Avec Docker (recommandé)
+
+```bash
+# Configurer l'environnement
+cp .env_exemple .env
+# → Éditer .env et ajouter OPENROUTER_API_KEY
+
+# Démarrer l'API + le dashboard
+docker compose up --build
+```
+
+| Service | URL |
+|---------|-----|
+| API REST | http://localhost:8000 |
+| Swagger docs | http://localhost:8000/docs |
+| Dashboard | http://localhost:8501 |
+
+### Sans Docker (développement local)
 
 ```bash
 # Dashboard interactif
@@ -202,6 +221,8 @@ credit-scoring/
 │   └── labels.csv
 ├── models/                         # Artifacts ML (xgboost_model.pkl, shap_explainer.pkl…)
 ├── .env_exemple                    # Template de configuration
+├── Dockerfile                      # Build multi-stage (uv + python:3.11-slim)
+├── docker-compose.yml              # Services api + dashboard
 └── pyproject.toml
 ```
 
