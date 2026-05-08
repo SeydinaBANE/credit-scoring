@@ -1,30 +1,32 @@
-# 💳 CréditScore AI
+# CréditScore AI
 
 > Scoring de crédit alternatif pour les **non-bankés en Afrique de l'Ouest**  
-> Analyse les données **Mobile Money** (Wave, Orange Money) et **Telco** pour évaluer la solvabilité des clients sans historique bancaire.
+> Analyse les données **Mobile Money** (Wave, Orange Money) et **Telco** pour évaluer la solvabilité sans historique bancaire.
+
+![Python](https://img.shields.io/badge/Python-3.11-blue) ![XGBoost](https://img.shields.io/badge/XGBoost-AUC--ROC%200.86-green) ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688) ![LangGraph](https://img.shields.io/badge/Agent-LangGraph-orange)
 
 ---
 
 ## Aperçu
 
-| Dashboard | API |
-|-----------|-----|
+| Dashboard | API Swagger |
+|:---------:|:-----------:|
 | ![Dashboard](screnshots/dashbord.png) | ![API](screnshots/api.png) |
 
 ---
 
-## Fonctionnement
+## Comment ça marche
 
 ```
 Données Mobile Money + Telco
         ↓
-Feature Engineering (39 features RFM, fenêtres temporelles, scores telco)
+Feature Engineering  →  39 features (RFM, fenêtres temporelles, scores télécom)
         ↓
-XGBoost calibré → Score 300–900 + probabilité
+XGBoost calibré  →  Score 300–900 + probabilité
         ↓
-SHAP → Top 5 facteurs explicatifs
+SHAP TreeExplainer  →  Top 5 facteurs déterminants
         ↓
-Claude AI (via OpenRouter) → Explication en français + recommandation
+Agent LangGraph (4 nœuds)  →  Explication en français via Claude Haiku
         ↓
 Décision : APPROUVÉ / RÉVISION MANUELLE / REFUSÉ
 ```
@@ -40,6 +42,17 @@ Décision : APPROUVÉ / RÉVISION MANUELLE / REFUSÉ
 
 ---
 
+## Performance du modèle
+
+| Métrique | Valeur |
+|----------|--------|
+| AUC-ROC (test) | **0.860** |
+| AUC-ROC (CV 5-fold) | **0.873 ± 0.018** |
+| Brier Score | 0.151 |
+| Précision (vrais positifs) | 159 / (159 + 38) = 80.7 % |
+
+---
+
 ## Stack technique
 
 | Composant | Technologie |
@@ -50,44 +63,43 @@ Décision : APPROUVÉ / RÉVISION MANUELLE / REFUSÉ
 | LLM | Claude Haiku via OpenRouter |
 | API | FastAPI + Pydantic v2 |
 | Dashboard | Streamlit |
-| Runtime | Python 3.11 + uv |
-
-**Performance modèle** : AUC-ROC 0.86 · CV 0.873 ± 0.018
+| Runtime | Python 3.11 · uv |
 
 ---
 
 ## Installation
 
 ```bash
-# Cloner le dépôt
 git clone https://github.com/SeydinaBANE/credit-scoring.git
 cd credit-scoring
 
 # Installer les dépendances
 uv sync
 
-# Configurer les variables d'environnement
+# Configurer l'environnement
 cp .env_exemple .env
-# Éditer .env et ajouter votre clé OpenRouter
+# → Éditer .env et ajouter OPENROUTER_API_KEY
 ```
 
 ### Variables d'environnement (`.env`)
 
-```env
-OPENROUTER_API_KEY=sk-or-v1-...
-OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-MODEL_ID=anthropic/claude-haiku
-```
+| Variable | Description | Défaut |
+|----------|-------------|--------|
+| `OPENROUTER_API_KEY` | Clé API OpenRouter (obligatoire) | — |
+| `OPENROUTER_BASE_URL` | Base URL OpenRouter | `https://openrouter.ai/api/v1` |
+| `MODEL_ID` | Modèle LLM | `anthropic/claude-haiku` |
+| `API_KEY_DEV` | Clé API dev FastAPI | `cs-dev-key-123` |
+| `API_KEY_PROD` | Clé API prod FastAPI | `cs-prod-key-456` |
 
 ---
 
 ## Lancement
 
 ```bash
-# Dashboard Streamlit
+# Dashboard interactif
 uv run streamlit run src/dashboard/app.py
 
-# API FastAPI (http://localhost:8000/docs)
+# API REST (docs → http://localhost:8000/docs)
 uv run uvicorn src.api.main:app --reload --port 8000
 ```
 
@@ -97,8 +109,19 @@ uv run uvicorn src.api.main:app --reload --port 8000
 
 Toutes les routes nécessitent le header `X-API-Key`.
 
+### Endpoints
+
+| Méthode | Route | Description |
+|---------|-------|-------------|
+| `GET` | `/health` | État du service |
+| `POST` | `/v1/score` | Scorer un client |
+| `POST` | `/v1/score/batch` | Scorer jusqu'à 50 clients |
+| `GET` | `/v1/model/info` | Métriques et features du modèle |
+| `GET` | `/docs` | Documentation Swagger |
+
+### Exemple
+
 ```bash
-# Scorer un client
 curl -X POST http://localhost:8000/v1/score \
   -H "X-API-Key: cs-dev-key-123" \
   -H "Content-Type: application/json" \
@@ -135,54 +158,50 @@ curl -X POST http://localhost:8000/v1/score \
   "decision": "APPROUVÉ",
   "montant_max_xof": 500000,
   "duree_max_mois": 12,
-  "explanation": "Le client présente un profil solide...",
+  "explanation": "Le client présente un profil solide avec une activité Mobile Money régulière...",
   "recommendation": "Prêt recommandé sous conditions standard.",
-  "shap_factors": { ... }
+  "shap_factors": { "regularite_mensuelle": 0.18, "nb_tx_90j": 0.14, "..." : "..." }
 }
 ```
-
-### Endpoints
-
-| Méthode | Route | Description |
-|---------|-------|-------------|
-| `GET` | `/health` | État du service |
-| `POST` | `/v1/score` | Scorer un client |
-| `POST` | `/v1/score/batch` | Scorer jusqu'à 50 clients |
-| `GET` | `/v1/model/info` | Métriques et features du modèle |
-| `GET` | `/docs` | Documentation Swagger |
 
 ---
 
 ## Régénérer les données et le modèle
 
 ```bash
-# Générer des données synthétiques
+# (Optionnel) Générer de nouvelles données synthétiques
 uv run python data/generate_data.py
 
-# Recalculer les features
+# Recalculer les 39 features
 uv run python src/features/feature_engeneering.py
 
-# Réentraîner le modèle
+# Réentraîner XGBoost
 uv run python src/model/train.py
+
+# Tester l'agent directement (2 clients exemples)
+uv run python src/agent/scoring_agent.py
 ```
 
 ---
 
-## Structure
+## Structure du projet
 
 ```
 credit-scoring/
 ├── src/
-│   ├── config.py              # Constantes partagées (seuils, mappings)
-│   ├── agent/scoring_agent.py # Pipeline LangGraph (3 nœuds)
-│   ├── api/main.py            # API FastAPI
-│   ├── dashboard/app.py       # Interface Streamlit
-│   ├── features/              # Feature engineering
-│   └── model/train.py         # Entraînement XGBoost
+│   ├── config.py                   # Seuils et mappings partagés
+│   ├── agent/scoring_agent.py      # Pipeline LangGraph 4 nœuds
+│   ├── api/main.py                 # API FastAPI
+│   ├── dashboard/app.py            # Interface Streamlit
+│   ├── features/feature_engeneering.py  # Feature engineering (39 features)
+│   └── model/train.py              # Entraînement XGBoost + SHAP
 ├── data/
-│   └── generate_data.py       # Générateur de données synthétiques
-├── models/                    # Artifacts ML (non versionnés)
-├── .env_exemple               # Template de configuration
+│   ├── generate_data.py            # Générateur synthétique (2 000 clients)
+│   ├── clients.csv / transactions.csv / telco.csv
+│   ├── features.csv                # Features pré-calculées
+│   └── labels.csv
+├── models/                         # Artifacts ML (xgboost_model.pkl, shap_explainer.pkl…)
+├── .env_exemple                    # Template de configuration
 └── pyproject.toml
 ```
 
@@ -190,4 +209,4 @@ credit-scoring/
 
 ## Contexte
 
-Ce projet s'adresse aux institutions de microfinance et fintech actives en Afrique de l'Ouest souhaitant évaluer la solvabilité de clients sans compte bancaire. En l'absence d'historique de crédit traditionnel, le modèle exploite des signaux comportementaux issus du Mobile Money et des données télécom comme proxies de fiabilité financière.
+Ce projet cible les institutions de microfinance et fintechs actives en Afrique de l'Ouest. En l'absence d'historique bancaire, le modèle exploite des signaux comportementaux Mobile Money et télécom comme proxies de fiabilité financière — permettant d'évaluer des millions de clients aujourd'hui exclus du crédit formel.
