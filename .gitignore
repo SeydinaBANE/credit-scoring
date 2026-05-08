@@ -1,0 +1,24 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Variables d'environnement (clés API, secrets)
+.env
+
+# Artifacts du modèle (régénérables via uv run python src/model/train.py)
+models/*.pkl
+models/*.json
+models/*.csv
+
+# Données (régénérables via uv run python data/generate_data.py)
+data/*.csv
+
+# macOS
+.DS_Store
